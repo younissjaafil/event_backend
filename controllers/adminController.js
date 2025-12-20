@@ -1,25 +1,25 @@
-const db = require('../config/db');
+const { dbPromise } = require('../config/db');
 
 // Get dashboard statistics
 exports.getStatistics = async (req, res) => {
   try {
     // Get total events
-    const [eventCount] = await db.promise().query(
+    const [eventCount] = await dbPromise.query(
       'SELECT COUNT(*) as total FROM events'
     );
 
     // Get total users by role
-    const [usersByRole] = await db.promise().query(
+    const [usersByRole] = await dbPromise.query(
       'SELECT role, COUNT(*) as count FROM users GROUP BY role'
     );
 
     // Get total registrations
-    const [registrationCount] = await db.promise().query(
+    const [registrationCount] = await dbPromise.query(
       'SELECT COUNT(*) as total FROM registrations'
     );
 
     // Get upcoming events count
-    const [upcomingEvents] = await db.promise().query(
+    const [upcomingEvents] = await dbPromise.query(
       'SELECT COUNT(*) as total FROM events WHERE date >= CURDATE()'
     );
 
@@ -41,7 +41,7 @@ exports.getStatistics = async (req, res) => {
 // Get all users
 exports.getAllUsers = async (req, res) => {
   try {
-    const [users] = await db.promise().query(
+    const [users] = await dbPromise.query(
       'SELECT id, email, name, role, created_at FROM users ORDER BY created_at DESC'
     );
 
@@ -55,7 +55,7 @@ exports.getAllUsers = async (req, res) => {
 // Get all events with creator info
 exports.getAllEventsWithCreator = async (req, res) => {
   try {
-    const [events] = await db.promise().query(
+    const [events] = await dbPromise.query(
       `SELECT e.*, u.name as creator_name, u.email as creator_email,
        (SELECT COUNT(*) FROM registrations WHERE event_id = e.id) as registration_count
        FROM events e
