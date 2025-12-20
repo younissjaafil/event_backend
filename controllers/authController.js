@@ -1,4 +1,4 @@
-const db = require('../config/db');
+const { dbPromise } = require('../config/db');
 
 // User signup
 exports.signup = async (req, res) => {
@@ -11,7 +11,7 @@ exports.signup = async (req, res) => {
     }
 
     // Check if user already exists
-    const [existingUsers] = await db.promise().query(
+    const [existingUsers] = await dbPromise.query(
       'SELECT id FROM users WHERE email = ?',
       [email]
     );
@@ -21,7 +21,7 @@ exports.signup = async (req, res) => {
     }
 
     // Insert new user (role defaults to 'user', password stored as plain text)
-    const [result] = await db.promise().query(
+    const [result] = await dbPromise.query(
       'INSERT INTO users (email, password, name, role) VALUES (?, ?, ?, ?)',
       [email, password, name, 'user']
     );
@@ -47,7 +47,7 @@ exports.login = async (req, res) => {
     }
 
     // Find user
-    const [users] = await db.promise().query(
+    const [users] = await dbPromise.query(
       'SELECT id, email, name, role, password FROM users WHERE email = ?',
       [email]
     );
@@ -85,7 +85,7 @@ exports.login = async (req, res) => {
 // Get current user
 exports.getCurrentUser = async (req, res) => {
   try {
-    const [users] = await db.promise().query(
+    const [users] = await dbPromise.query(
       'SELECT id, email, name, role, created_at FROM users WHERE id = ?',
       [req.userId]
     );
