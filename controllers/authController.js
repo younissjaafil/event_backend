@@ -81,9 +81,15 @@ exports.login = async (req, res) => {
 // Get current user
 exports.getCurrentUser = async (req, res) => {
   try {
+    const userId = req.query.userId || req.body.userId;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
     const [users] = await dbPromise.query(
       'SELECT id, email, name, role, created_at FROM users WHERE id = ?',
-      [req.userId]
+      [userId]
     );
 
     if (users.length === 0) {

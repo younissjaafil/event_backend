@@ -24,7 +24,11 @@ const getEventRegistrations = async (req, res, next) => {
 const registerUser = async (req, res, next) => {
   try {
     const { eventId } = req.params;
-    const userId = req.userId; // From authentication middleware
+    const { userId } = req.body; // Get userId from request body
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
 
     // Check if event exists
     const [events] = await dbPromise.query(
@@ -82,7 +86,11 @@ const registerUser = async (req, res, next) => {
 const unregisterUser = async (req, res, next) => {
   try {
     const { eventId } = req.params;
-    const userId = req.userId; // From authentication middleware
+    const { userId } = req.body; // Get userId from request body
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
 
     // Check if registration exists
     const [registrations] = await dbPromise.query(

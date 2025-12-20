@@ -69,7 +69,7 @@ const getEventById = async (req, res, next) => {
 // Create new event
 const createEvent = async (req, res, next) => {
   try {
-    const { title, date, location, description, image, imagePath, maxAttendees } =
+    const { title, date, location, description, image, imagePath, maxAttendees, userId } =
       req.body;
 
     if (!title || !date || !location) {
@@ -78,8 +78,8 @@ const createEvent = async (req, res, next) => {
         .json({ error: "Title, date, and location are required" });
     }
 
-    // Get creator ID from authenticated user
-    const createdBy = req.userId || null;
+    // Use userId from request body
+    const createdBy = userId || null;
 
     const [result] = await dbPromise.query(
       `INSERT INTO events (title, date, location, description, image, image_path, max_attendees, created_by) 
