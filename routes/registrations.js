@@ -5,16 +5,11 @@ const {
   registerUser,
   unregisterUser,
 } = require("../controllers/registrationController");
-const { authenticate } = require("../middleware/auth");
 
-// Get all registrations for an event
+// All routes are public now
 router.get("/:eventId/registrations", getEventRegistrations);
-
-// Register user for an event (authenticated users only)
-router.post("/:eventId/register", authenticate, registerUser);
-
-// Unregister user from an event (authenticated users only)
-router.delete("/:eventId/unregister", authenticate, unregisterUser);
+router.post("/:eventId/register", registerUser);
+router.delete("/:eventId/unregister", unregisterUser);
 
 module.exports = router;
 

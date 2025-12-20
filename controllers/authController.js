@@ -63,12 +63,8 @@ exports.login = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Create session token (simple: user ID + timestamp)
-    const token = Buffer.from(`${user.id}:${Date.now()}`).toString('base64');
-
-    // Return user data (without password)
+    // Return user data only (no token)
     res.json({
-      token,
       user: {
         id: user.id,
         email: user.email,

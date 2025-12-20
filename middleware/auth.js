@@ -1,4 +1,4 @@
-const db = require('../config/db');
+const { dbPromise } = require('../config/db');
 
 // Authentication middleware
 exports.authenticate = async (req, res, next) => {
@@ -12,16 +12,15 @@ exports.authenticate = async (req, res, next) => {
 
     const token = authHeader.substring(7); // Remove 'Bearer '
 
-    // Decode token (base64 encoded userId:timestamp)
-    const decoded = Buffer.from(token, 'base64').toString('utf-8');
-    const [userId] = decoded.split(':');
+    // Extract user ID from simple token (format: user_123)
+    const userId = token.replace('user_', '');
 
-    if (!userId) {
+    if (!userId || isNaN(userId)) {
       return res.status(401).json({ error: 'Invalid token' });
     }
 
     // Verify user exists
-    const [users] = await db.promise().query(
+    const [users] = await dbPromise.query(
       'SELECT id, email, name, role FROM users WHERE id = ?',
       [userId]
     );

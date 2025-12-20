@@ -7,22 +7,13 @@ const {
   updateEvent,
   deleteEvent,
 } = require("../controllers/eventController");
-const { authenticate, authorize } = require("../middleware/auth");
 
-// Get all events (public)
+// All routes are public now
 router.get("/", getAllEvents);
-
-// Get single event (public)
 router.get("/:id", getEventById);
-
-// Create event (president and admin only)
-router.post("/", authenticate, authorize('president', 'admin'), createEvent);
-
-// Update event (president can update own, admin can update all)
-router.put("/:id", authenticate, authorize('president', 'admin'), updateEvent);
-
-// Delete event (president can delete own, admin can delete all)
-router.delete("/:id", authenticate, authorize('president', 'admin'), deleteEvent);
+router.post("/", createEvent);
+router.put("/:id", updateEvent);
+router.delete("/:id", deleteEvent);
 
 module.exports = router;
 
