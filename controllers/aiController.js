@@ -1,9 +1,9 @@
 const OpenAI = require("openai");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-const fs = require("fs");
-const path = require("path");
 const https = require("https");
 require("dotenv").config();
+
+const { dbPromise } = require("../config/db");
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -49,9 +49,46 @@ const generateDescription = async (req, res, next) => {
 
 // Generate image prompt using OpenAI, then generate image using Gemini
 
+const getPublicBaseUrl = (req) => {
+  return (
+    process.env.PUBLIC_BASE_URL ||
+    `${req.protocol}://${req.get("host")}`
+  );
+};
+
+const guessExtensionFromMimeType = (mimeType) => {
+  if (!mimeType) return "bin";
+  if (mimeType === "image/png") return "png";
+  if (mimeType === "image/jpeg") return "jpg";
+  if (mimeType === "image/webp") return "webp";
+  if (mimeType === "image/gif") return "gif";
+  return "bin";
+};
+
+const downloadToBuffer = async (url) => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to download image: ${response.status} ${response.statusText}`);
+  }
+  const contentType = response.headers.get("content-type") || "application/octet-stream";
+  const arrayBuffer = await response.arrayBuffer();
+  return {
+    mimeType: contentType,
+    buffer: Buffer.from(arrayBuffer),
+  };
+};
+
+const saveImageToDb = async ({ userId = null, mimeType, filename, buffer }) => {
+  const [result] = await dbPromise.query(
+    "INSERT INTO images (user_id, mime_type, size_bytes, filename, data) VALUES (?, ?, ?, ?, ?)",
+    [userId, mimeType, buffer.length, filename || null, buffer]
+  );
+  return result.insertId;
+};
+
 const generateImage = async (req, res, next) => {
   try {
-    const { title, location, description } = req.body;
+    const { title, location, description, userId } = req.body;
 
     if (!title || !title.trim()) {
       return res.status(400).json({ error: "Event title is required" });
@@ -122,21 +159,26 @@ const generateImage = async (req, res, next) => {
         const imagePart = parts.find((part) => part.inlineData);
 
         if (imagePart?.inlineData?.data) {
-          // Save image to filesystem
+          const mimeType = imagePart.inlineData.mimeType || "image/png";
+          const ext = guessExtensionFromMimeType(mimeType);
           const timestamp = Date.now();
-          const filename = `event-${timestamp}.png`;
-          const imagePath = path.join(__dirname, '../images', filename);
-          
-          // Convert base64 to buffer and save
-          const imageBuffer = Buffer.from(imagePart.inlineData.data, 'base64');
-          fs.writeFileSync(imagePath, imageBuffer);
-          
-          // Convert base64 to data URL for immediate display
-          const imageDataUrl = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
-          
-          return res.json({ 
-            image: imageDataUrl,
-            imagePath: `/api/images/${filename}`
+          const filename = `event-${timestamp}.${ext}`;
+          const imageBuffer = Buffer.from(imagePart.inlineData.data, "base64");
+
+          const imageId = await saveImageToDb({
+            userId: userId || null,
+            mimeType,
+            filename,
+            buffer: imageBuffer,
+          });
+
+          const publicBaseUrl = getPublicBaseUrl(req);
+          const imageUrl = `${publicBaseUrl}/api/images/${imageId}`;
+
+          return res.json({
+            image: imageUrl,
+            imagePath: imageUrl,
+            imageId,
           });
         }
       }
@@ -154,16 +196,25 @@ const generateImage = async (req, res, next) => {
 
       const imageUrl = imageResponse.data[0]?.url;
       if (imageUrl) {
-        // Download and save image
+        const { mimeType, buffer } = await downloadToBuffer(imageUrl);
+        const ext = guessExtensionFromMimeType(mimeType);
         const timestamp = Date.now();
-        const filename = `event-${timestamp}.png`;
-        const imagePath = path.join(__dirname, '../images', filename);
-        
-        await downloadImage(imageUrl, imagePath);
-        
-        return res.json({ 
-          image: imageUrl,
-          imagePath: `/api/images/${filename}`
+        const filename = `event-${timestamp}.${ext}`;
+
+        const imageId = await saveImageToDb({
+          userId: userId || null,
+          mimeType,
+          filename,
+          buffer,
+        });
+
+        const publicBaseUrl = getPublicBaseUrl(req);
+        const storedUrl = `${publicBaseUrl}/api/images/${imageId}`;
+
+        return res.json({
+          image: storedUrl,
+          imagePath: storedUrl,
+          imageId,
         });
       } else {
         return res.status(500).json({ error: "Failed to generate image" });
@@ -181,16 +232,25 @@ const generateImage = async (req, res, next) => {
 
         const imageUrl = imageResponse.data[0]?.url;
         if (imageUrl) {
-          // Download and save image
+          const { mimeType, buffer } = await downloadToBuffer(imageUrl);
+          const ext = guessExtensionFromMimeType(mimeType);
           const timestamp = Date.now();
-          const filename = `event-${timestamp}.png`;
-          const imagePath = path.join(__dirname, '../images', filename);
-          
-          await downloadImage(imageUrl, imagePath);
-          
-          return res.json({ 
-            image: imageUrl,
-            imagePath: `/api/images/${filename}`
+          const filename = `event-${timestamp}.${ext}`;
+
+          const imageId = await saveImageToDb({
+            userId: userId || null,
+            mimeType,
+            filename,
+            buffer,
+          });
+
+          const publicBaseUrl = getPublicBaseUrl(req);
+          const storedUrl = `${publicBaseUrl}/api/images/${imageId}`;
+
+          return res.json({
+            image: storedUrl,
+            imagePath: storedUrl,
+            imageId,
           });
         } else {
           return res.status(500).json({ error: "Failed to generate image" });
@@ -206,33 +266,6 @@ const generateImage = async (req, res, next) => {
     console.error("Error generating image:", error);
     next(error);
   }
-};
-
-// Helper function to download image from URL
-const downloadImage = (url, filepath) => {
-  return new Promise((resolve, reject) => {
-    https.get(url, (response) => {
-      if (response.statusCode !== 200) {
-        reject(new Error(`Failed to download image: ${response.statusCode}`));
-        return;
-      }
-
-      const fileStream = fs.createWriteStream(filepath);
-      response.pipe(fileStream);
-
-      fileStream.on('finish', () => {
-        fileStream.close();
-        resolve();
-      });
-
-      fileStream.on('error', (err) => {
-        fs.unlink(filepath, () => {}); // Delete the file on error
-        reject(err);
-      });
-    }).on('error', (err) => {
-      reject(err);
-    });
-  });
 };
 
 module.exports = {

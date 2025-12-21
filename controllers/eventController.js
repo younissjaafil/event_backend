@@ -81,6 +81,9 @@ const createEvent = async (req, res, next) => {
     // Use userId from request body
     const createdBy = userId || null;
 
+    // Prefer storing a stable URL in image_path (keep backward compatibility)
+    const normalizedImagePath = imagePath || image || null;
+
     const [result] = await dbPromise.query(
       `INSERT INTO events (title, date, location, description, image, image_path, max_attendees, created_by) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -90,7 +93,7 @@ const createEvent = async (req, res, next) => {
         location,
         description || null,
         image || null,
-        imagePath || null,
+        normalizedImagePath,
         maxAttendees || 50,
         createdBy,
       ]
@@ -146,7 +149,7 @@ const updateEvent = async (req, res, next) => {
         location || event.location,
         description !== undefined ? description : event.description,
         image !== undefined ? image : event.image,
-        imagePath !== undefined ? imagePath : event.image_path,
+        imagePath !== undefined ? (imagePath || image || null) : (event.image_path || event.image || null),
         maxAttendees || event.max_attendees,
         id,
       ]

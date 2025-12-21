@@ -10,9 +10,12 @@ const registrationsRoutes = require("./routes/registrations");
 const aiRoutes = require("./routes/ai");
 const authRoutes = require("./routes/auth");
 const adminRoutes = require("./routes/admin");
+const imagesRoutes = require("./routes/images");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+ 
 
 // Middleware
 const allowedOrigins = [
@@ -37,6 +40,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static images
 app.use('/api/images', express.static(path.join(__dirname, 'images')));
+
+// Serve DB-stored images (falls through if static file not found)
+app.use("/api/images", imagesRoutes);
 
 // Routes
 app.use("/api/auth", authRoutes);
