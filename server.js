@@ -18,10 +18,15 @@ const PORT = process.env.PORT || 5000;
  
 
 // Middleware
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://event-frontend-prod.vercel.app"
-];
+// Configure CORS origins via env var to avoid "works locally, fails on live".
+// Example: CORS_ORIGINS="http://localhost:3000,https://your-frontend.vercel.app"
+const allowedOrigins = (
+  process.env.CORS_ORIGINS ||
+  "http://localhost:3000,https://event-frontend-prod.vercel.app"
+)
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 app.use(cors({
   origin: function(origin, callback) {
